@@ -43,7 +43,7 @@ import { BorderAll, Camera, CenterFocusWeak, RadioButtonChecked, StopCircle } fr
 import Encoding from "encoding-japanese"
 import { BoneFrame, MorphFrame, RecordedFrame, Body } from "."
 
-import init, { PoseSolver, PoseSolverResult, Rotation } from "pose_solver"
+import init, { PoseSolver, PoseSolverResult } from "pose_solver"
 
 registerSceneLoaderPlugin(new PmxLoader())
 
@@ -101,6 +101,20 @@ const StyledBadge = styled(Badge)<BadgeProps>(({ theme }) => ({
 }))
 
 
+
+const usedKeyBones = [
+  "センター", "首", "頭", "上半身", "下半身",
+  "左足", "右足", "左ひざ", "右ひざ", "左足首", "右足首",
+  "左足ＩＫ", "右足ＩＫ",
+  "左腕", "右腕", "左ひじ", "右ひじ", "左手首", "右手首",
+  "左目", "右目",
+  "左親指１", "左親指２", "左人指１", "左人指２", "左人指３",
+  "左中指１", "左中指２", "左中指３", "左薬指１", "左薬指２", "左薬指３",
+  "左小指１", "左小指２", "左小指３",
+  "右親指１", "右親指２", "右人指１", "右人指２", "右人指３",
+  "右中指１", "右中指２", "右中指３", "右薬指１", "右薬指２", "右薬指３",
+  "右小指１", "右小指２", "右小指３"
+];
 
 function MMDScene({
   body,
@@ -447,21 +461,16 @@ function MMDScene({
   }, [sceneRef, mmdWasmInstanceRef, mmdRuntimeRef, mmdModelRef, selectedAnimation, setAnimationDuration, setIsPlaying])
 
   useEffect(() => {
+    // Only update pose from motion capture if no animation is selected
+    if (selectedAnimation !== "") {
+      return // Don't interfere with VMD animation
+    }
+
     if (mmdRuntimeRef.current && mmdRuntimeRef.current.isAnimationPlaying) {
       mmdRuntimeRef.current.pauseAnimation()
       mmdModelRef.current!.removeAnimation(0)
     }
-    const setBoneRotation = (bone: IMmdRuntimeLinkedBone | null, rotation: Rotation): void => {
-      if (!bone) return
-      bone.setRotationQuaternion(
-        Quaternion.Slerp(
-          bone.rotationQuaternion || new Quaternion(),
-          new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w),
-          lerpFactor
-        ),
-        Space.LOCAL
-      )
-    }
+
     const updateMMDPose = (mmdModel: MmdWasmModel | null, body: Body): void => {
       if (!mmdModel || !body || !body.mainBody || !poseSolverRef.current) {
         return
@@ -489,21 +498,27 @@ function MMDScene({
         mmdModel.morph.setMorphWeight(morphName, Math.max(0, Math.min(1, newValue)))
       }
 
-      getBone.position = new Vector3(
-        body.mainBody![27].x * 10,
-        -body.mainBody![27].y * 10 + 7,
-        body.mainBody![27].z * 10
-      )
-      getBone.position = new Vector3(
-        body.mainBody![28].x * 10,
-        -body.mainBody![28].y * 10 + 7,
-        body.mainBody![28].z * 10
-      )
+      const leftFootIK = getBone("左足ＩＫ")
+      if (leftFootIK) {
+        leftFootIK.position = new Vector3(
+          body.mainBody![27].x * 10,
+          -body.mainBody![27].y * 10 + 7,
+          body.mainBody![27].z * 10
+        )
+      }
+      const rightFootIK = getBone("右足ＩＫ")
+      if (rightFootIK) {
+        rightFootIK.position = new Vector3(
+          body.mainBody![28].x * 10,
+          -body.mainBody![28].y * 10 + 7,
+          body.mainBody![28].z * 10
+        )
+      }
     }
     if (sceneRef.current && mmdModelRef.current) {
       updateMMDPose(mmdModelRef.current, body)
     }
-  }, [body, lerpFactor])
+  }, [body, lerpFactor, selectedAnimation])
 
   const handleCaptureScreenshot = () => {
     const button = document.querySelector(".screenshot-button")

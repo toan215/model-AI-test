@@ -10,6 +10,7 @@ const availableModels = [
   "Eye of Deep Space-Selene 2",
   "Mingchao-Yinlin",
   "Original God-Ying",
+  "ely",
 ]
 
 function Model({ setSelectedModel }: { setSelectedModel: (model: string) => void }): JSX.Element {
